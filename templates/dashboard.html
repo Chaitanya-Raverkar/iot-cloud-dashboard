@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Cloud Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+        header { background: #1e293b; padding: 20px 40px; border-bottom: 1px solid #334155; }
+        header h1 { font-size: 24px; color: #38bdf8; }
+        header p { font-size: 13px; color #94a3b8; margin-top: 4px; }
+        .cards { display: flex; gap: 20px; padding: 30px 40px; flex-wrap: wrap; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; flex: 1; min-width: 200px; border: 1px solid #334155; }
+        .card h3 { font-size: 13px; color: #94a3b8; margin-bottom: 10px; }
+        .card .value { font-size: 32px; font-weight: bold; color: #38bdf8; }
+        .card .sub { font-size: 13px; color: #64748b; margin-top: 6px; }
+        .charts { display: flex; gap: 20px; padding: 0 40px 30px; flex-wrap: wrap; }
+        .chart-box { background: #1e293b; border-radius: 12px; padding: 24px; flex: 1; min-width: 300px; border: 1px solid #334155; }
+        .chart-box h3 { font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
+        .status { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 6px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .live-badge { font-size: 12px; color: #22c55e; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚡ IoT Sensor Cloud Dashboard</h1>
+    <p><span class="status"></span><span class="live-badge">LIVE</span> — Auto-refreshing every 3 seconds</p>
+</header>
+
+<div class="cards">
+    <div class="card">
+        <h3>🌡️ SENSOR-1 TEMPERATURE</h3>
+        <div class="value" id="temp1">--</div>
+        <div class="sub">°C</div>
+    </div>
+    <div class="card">
+        <h3>💧 SENSOR-1 HUMIDITY</h3>
+        <div class="value" id="hum1">--</div>
+        <div class="sub">%</div>
+    </div>
+    <div class="card">
+        <h3>🌡️ SENSOR-2 TEMPERATURE</h3>
+        <div class="value" id="temp2">--</div>
+        <div class="sub">°C</div>
+    </div>
+    <div class="card">
+        <h3>💧 SENSOR-2 HUMIDITY</h3>
+        <div class="value" id="hum2">--</div>
+        <div class="sub">%</div>
+    </div>
+    <div class="card">
+        <h3>🌡️ SENSOR-3 TEMPERATURE</h3>
+        <div class="value" id="temp3">--</div>
+        <div class="sub">°C</div>
+    </div>
+    <div class="card">
+        <h3>💧 SENSOR-3 HUMIDITY</h3>
+        <div class="value" id="hum3">--</div>
+        <div class="sub">%</div>
+    </div>
+</div>
+
+<div class="charts">
+    <div class="chart-box">
+        <h3>🌡️ Temperature Over Time</h3>
+        <canvas id="tempChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h3>💧 Humidity Over Time</h3>
+        <canvas id="humChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const colors = {
+        "Sensor-1": "#38bdf8",
+        "Sensor-2": "#f472b6",
+        "Sensor-3": "#34d399"
+    };
+
+    // Initialize charts
+    const tempChart = new Chart(document.getElementById("tempChart"), {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#94a3b8" } } },
+            scales: {
+                x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+                y: { ticks: { color: "#64748b" }, grid: { color: "#334155" } }
+            }
+        }
+    });
+
+    const humChart = new Chart(document.getElementById("humChart"), {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#94a3b8" } } },
+            scales: {
+                x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+                y: { ticks: { color: "#64748b" }, grid: { color: "#334155" } }
+            }
+        }
+    });
+
+    function updateCards(latest) {
+        latest.forEach(r => {
+            const n = r.sensor_id.split("-")[1];
+            document.getElementById("temp" + n).textContent = r.temperature;
+            document.getElementById("hum" + n).textContent = r.humidity;
+        });
+    }
+
+    function updateCharts(data) {
+        const sensors = ["Sensor-1", "Sensor-2", "Sensor-3"];
+        const labels = [...new Set(data.map(r => r.timestamp.slice(11, 19)))].reverse().slice(-10);
+
+        tempChart.data.labels = labels;
+        humChart.data.labels = labels;
+
+        tempChart.data.datasets = sensors.map(s => ({
+            label: s,
+            data: data.filter(r => r.sensor_id === s).map(r => r.temperature).reverse().slice(-10),
+            borderColor: colors[s],
+            backgroundColor: colors[s] + "22",
+            tension: 0.4,
+            fill: true
+        }));
+
+        humChart.data.datasets = sensors.map(s => ({
+            label: s,
+            data: data.filter(r => r.sensor_id === s).map(r => r.humidity).reverse().slice(-10),
+            borderColor: colors[s],
+            backgroundColor: colors[s] + "22",
+            tension: 0.4,
+            fill: true
+        }));
+
+        tempChart.update();
+        humChart.update();
+    }
+
+    async function fetchData() {
+        const [latest, history] = await Promise.all([
+            fetch("/api/latest").then(r => r.json()),
+            fetch("/api/data").then(r => r.json())
+        ]);
+        updateCards(latest);
+        updateCharts(history);
+    }
+
+    fetchData();
+    setInterval(fetchData, 3000);
+</script>
+
+</body>
+</html>
